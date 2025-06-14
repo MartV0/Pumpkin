@@ -6,6 +6,7 @@ build = "build/build.rs"
 
 [dependencies]
 pumpkin-util = { path = "../pumpkin-util" }
+phf = { version = "0.11.3", features = ["macros"] }
 
 serde.workspace = true
 serde_json.workspace = true

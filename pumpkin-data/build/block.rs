@@ -1111,7 +1111,7 @@ pub(crate) fn build() -> TokenStream {
             .expect("Failed to parse properties.json");
 
     let mut type_from_raw_id_arms = TokenStream::new();
-    let mut type_from_name = TokenStream::new();
+    let mut block_from_name = TokenStream::new();
     let mut block_from_state_id = TokenStream::new();
     let mut block_from_item_id = TokenStream::new();
     let mut block_properties_from_state_and_block_id = TokenStream::new();
@@ -1294,8 +1294,8 @@ pub(crate) fn build() -> TokenStream {
             #id_lit => Some(Self::#const_ident),
         });
 
-        type_from_name.extend(quote! {
-            #name => Some(Self::#const_ident),
+        block_from_name.extend(quote! {
+            #name => Self::#const_ident,
         });
 
         block_from_state_id.extend(quote! {
@@ -1317,6 +1317,7 @@ pub(crate) fn build() -> TokenStream {
         use pumpkin_util::loot_table::*;
         use pumpkin_util::math::experience::Experience;
         use pumpkin_util::math::vector3::Vector3;
+        use phf;
 
         #[derive(Clone, Copy, Debug)]
         pub struct BlockProperty {
@@ -1449,12 +1450,13 @@ pub(crate) fn build() -> TokenStream {
         impl Block {
             #constants
 
+            const BLOCK_FROM_NAME_MAP: phf::Map<&'static str, Block> = phf::phf_map!{
+                #block_from_name
+            };
+
             #[doc = r" Try to parse a block from a resource location string."]
             pub fn from_registry_key(name: &str) -> Option<Self> {
-                match name {
-                    #type_from_name
-                    _ => None
-                }
+                return Self::BLOCK_FROM_NAME_MAP.get(name).cloned();
             }
 
             #[doc = r" Try to parse a block from a raw id."]
