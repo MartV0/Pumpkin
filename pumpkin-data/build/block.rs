@@ -1112,7 +1112,7 @@ pub(crate) fn build() -> TokenStream {
 
     let mut type_from_raw_id_arms = TokenStream::new();
     let mut block_from_name = TokenStream::new();
-    let mut block_from_state_id = TokenStream::new();
+    let mut raw_id_from_state_id = TokenStream::new();
     let mut block_from_item_id = TokenStream::new();
     let mut block_properties_from_state_and_block_id = TokenStream::new();
     let mut block_properties_from_props_and_name = TokenStream::new();
@@ -1276,13 +1276,12 @@ pub(crate) fn build() -> TokenStream {
         .iter()
         .map(|entity_type| LitStr::new(entity_type, Span::call_site()));
 
+    let mut raw_id_from_state_id_array = vec![];
     // Generate constants and `match` arms for each block.
     for (name, block) in optimized_blocks {
         let const_ident = format_ident!("{}", const_block_name_from_block_name(&name));
         let block_tokens = block.to_token_stream();
         let id_lit = LitInt::new(&block.id.to_string(), Span::call_site());
-        let state_start = block.states.iter().map(|state| state.id).min().unwrap();
-        let state_end = block.states.iter().map(|state| state.id).max().unwrap();
         let item_id = block.item_id;
 
         constants.extend(quote! {
@@ -1298,9 +1297,9 @@ pub(crate) fn build() -> TokenStream {
             #name => Self::#const_ident,
         });
 
-        block_from_state_id.extend(quote! {
-            #state_start..=#state_end => Some(Self::#const_ident),
-        });
+        for state in &block.states {
+            raw_id_from_state_id_array.push((state.id, id_lit.clone()));
+        }
 
         if !existing_item_ids.contains(&item_id) {
             block_from_item_id.extend(quote! {
@@ -1308,6 +1307,24 @@ pub(crate) fn build() -> TokenStream {
             });
             existing_item_ids.push(item_id);
         }
+    }
+
+    // Generate raw_id_from_state_id by ordering state ids and filling gaps with None
+    let max_state_id = *raw_id_from_state_id_array
+        .iter()
+        .map(|(state_id, _)| state_id)
+        .max()
+        .unwrap();
+
+    let mut raw_id_from_state_id_ordered = vec![quote! { None }; (max_state_id + 1) as usize];
+
+    for (state_id, id_lit) in raw_id_from_state_id_array {
+        raw_id_from_state_id_ordered[state_id as usize] = quote! { Some(#id_lit) };
+    }
+    for id_lit in raw_id_from_state_id_ordered {
+        raw_id_from_state_id.extend(quote! {
+            #id_lit,
+        });
     }
 
     quote! {
@@ -1450,9 +1467,15 @@ pub(crate) fn build() -> TokenStream {
         impl Block {
             #constants
 
+            // String name to block struct
             const BLOCK_FROM_NAME_MAP: phf::Map<&'static str, Block> = phf::phf_map!{
                 #block_from_name
             };
+
+            // Many state ids map to single raw block id
+            const RAW_ID_FROM_STATE_ID: [Option<u16>; #max_state_id as usize + 1] = [
+                #raw_id_from_state_id
+            ];
 
             #[doc = r" Try to parse a block from a resource location string."]
             pub fn from_registry_key(name: &str) -> Option<Self> {
@@ -1469,9 +1492,12 @@ pub(crate) fn build() -> TokenStream {
 
             #[doc = r" Try to parse a block from a state id."]
             pub const fn from_state_id(id: u16) -> Option<Self> {
-                match id {
-                    #block_from_state_id
-                    _ => None
+                if id as usize >= Self::RAW_ID_FROM_STATE_ID.len() {
+                    return None;
+                }
+                match Self::RAW_ID_FROM_STATE_ID[id as usize] {
+                    Some(id) => Self::from_id(id),
+                    None => None,
                 }
             }
 
