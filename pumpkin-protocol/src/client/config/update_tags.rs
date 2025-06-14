@@ -36,7 +36,7 @@ impl ClientPacket for CUpdateTags<'_> {
                 WritingError::Message(format!("{} isn't representable as a VarInt", values.len()))
             })?)?;
 
-            for (key, values) in values.iter() {
+            for (key, values) in values.entries() {
                 // This is technically an `Identifier` but same thing
                 p.write_string_bounded(key, u16::MAX as usize)?;
                 p.write_list(values, |p, string_id| {
