@@ -692,7 +692,8 @@ pub(crate) fn build() -> TokenStream {
                 }
             }
             #[allow(unreachable_patterns)]
-            pub const fn from_state_id(id: u16) -> Option<Self> {
+            // pub const fn from_state_id(id: u16) -> Option<Self> {
+            pub fn from_state_id(id: u16) -> Option<Self> {
                 match id {
                     #fluid_from_state_id
                     _ => None
