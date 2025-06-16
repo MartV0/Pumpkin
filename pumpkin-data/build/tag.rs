@@ -109,14 +109,12 @@ pub(crate) fn build() -> TokenStream {
         #(#tag_dicts)*
 
         pub fn get_tag_values(tag_category: RegistryKey, tag: &str) -> Option<&'static [&'static str]> {
-            // TODO: also make this a hashmap?
             match tag_category {
                 #(#match_arms),*
             }
         }
 
         pub fn get_registry_key_tags(tag_category: &RegistryKey) -> &phf::Map<&'static str, &'static [&'static str]> {
-            // TODO: also make this a hashmap?
             match tag_category {
                 #(#match_arms_tags_all),*
             }

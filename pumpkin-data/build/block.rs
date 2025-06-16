@@ -1318,7 +1318,6 @@ pub(crate) fn build() -> TokenStream {
             raw_id_from_state_id_array.push((state.id, id_lit.clone()));
         }
 
-        // TODO
         if !existing_item_ids.contains(&item_id) {
             block_from_item_id.extend(quote! {
                 #item_id => Some(Self::#const_ident),
