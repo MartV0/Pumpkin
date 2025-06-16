@@ -81,7 +81,7 @@ impl BlockRegistry {
 
     pub async fn on_entity_collision(
         &self,
-        block: Block,
+        block: &'static Block,
         world: &Arc<World>,
         entity: &dyn EntityBase,
         pos: BlockPos,

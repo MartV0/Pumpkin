@@ -772,7 +772,7 @@ impl<'a> ProtoChunk<'a> {
 
 #[async_trait]
 impl BlockAccessor for ProtoChunk<'_> {
-    async fn get_block(&self, position: &BlockPos) -> pumpkin_data::Block {
+    async fn get_block(&self, position: &BlockPos) -> &'static pumpkin_data::Block {
         self.get_block_state(&position.0).to_block()
     }
 
@@ -783,10 +783,10 @@ impl BlockAccessor for ProtoChunk<'_> {
     async fn get_block_and_block_state(
         &self,
         position: &BlockPos,
-    ) -> (pumpkin_data::Block, pumpkin_data::BlockState) {
+    ) -> (&'static pumpkin_data::Block, pumpkin_data::BlockState) {
         let id = self.get_block_state(&position.0).state_id;
         get_block_and_state_by_state_id(id).unwrap_or((
-            Block::AIR,
+            &Block::AIR,
             get_state_by_state_id(Block::AIR.default_state_id).unwrap(),
         ))
     }

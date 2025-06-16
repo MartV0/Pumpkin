@@ -1,4 +1,5 @@
 use heck::{ToShoutySnakeCase, ToUpperCamelCase};
+
 use proc_macro2::{Span, TokenStream};
 use pumpkin_util::math::{experience::Experience, vector3::Vector3};
 use quote::{ToTokens, format_ident, quote};
@@ -1098,6 +1099,23 @@ pub struct BlockAssets {
     pub block_entity_types: Vec<String>,
 }
 
+// Takes an array of tuples containing indices paired with values,
+// Outputs an array with the values in the appropiate index, gaps filled with None
+fn fill_array<T: Clone + quote::ToTokens>(array: Vec<(u16, T)>) -> Vec<TokenStream> {
+    let max_index = array
+        .iter()
+        .map(|(index, _)| index)
+        .max()
+        .unwrap();
+    let mut raw_id_from_state_id_ordered = vec![quote!{ None }; (max_index + 1) as usize];
+
+    for (state_id, id_lit) in array {
+        raw_id_from_state_id_ordered[state_id as usize] = quote!{ Some(#id_lit) };
+    }
+
+    raw_id_from_state_id_ordered
+}
+
 pub(crate) fn build() -> TokenStream {
     println!("cargo:rerun-if-changed=../assets/blocks.json");
     println!("cargo:rerun-if-changed=../assets/properties.json");
@@ -1110,7 +1128,7 @@ pub(crate) fn build() -> TokenStream {
         serde_json::from_str(&fs::read_to_string("../assets/properties.json").unwrap())
             .expect("Failed to parse properties.json");
 
-    let mut type_from_raw_id_arms = TokenStream::new();
+    let mut type_from_raw_id_items = TokenStream::new();
     let mut block_from_name = TokenStream::new();
     let mut raw_id_from_state_id = TokenStream::new();
     let mut block_from_item_id = TokenStream::new();
@@ -1277,6 +1295,7 @@ pub(crate) fn build() -> TokenStream {
         .map(|entity_type| LitStr::new(entity_type, Span::call_site()));
 
     let mut raw_id_from_state_id_array = vec![];
+    let mut type_from_raw_id_array = vec![];
     // Generate constants and `match` arms for each block.
     for (name, block) in optimized_blocks {
         let const_ident = format_ident!("{}", const_block_name_from_block_name(&name));
@@ -1289,9 +1308,7 @@ pub(crate) fn build() -> TokenStream {
 
         });
 
-        type_from_raw_id_arms.extend(quote! {
-            #id_lit => Some(Self::#const_ident),
-        });
+        type_from_raw_id_array.push((block.id, quote! { &Self::#const_ident }));
 
         block_from_name.extend(quote! {
             #name => Self::#const_ident,
@@ -1309,21 +1326,18 @@ pub(crate) fn build() -> TokenStream {
         }
     }
 
-    // Generate raw_id_from_state_id by ordering state ids and filling gaps with None
-    let max_state_id = *raw_id_from_state_id_array
-        .iter()
-        .map(|(state_id, _)| state_id)
-        .max()
-        .unwrap();
-
-    let mut raw_id_from_state_id_ordered = vec![quote! { None }; (max_state_id + 1) as usize];
-
-    for (state_id, id_lit) in raw_id_from_state_id_array {
-        raw_id_from_state_id_ordered[state_id as usize] = quote! { Some(#id_lit) };
-    }
+    let raw_id_from_state_id_ordered = fill_array(raw_id_from_state_id_array);
+    let max_state_id = raw_id_from_state_id_ordered.len();
     for id_lit in raw_id_from_state_id_ordered {
         raw_id_from_state_id.extend(quote! {
             #id_lit,
+        });
+    }
+    let type_from_raw_id_array = fill_array(type_from_raw_id_array);
+    let max_type_id = type_from_raw_id_array.len();
+    for type_lit in type_from_raw_id_array  {
+        type_from_raw_id_items.extend(quote! {
+            #type_lit,
         });
     }
 
@@ -1390,7 +1404,7 @@ pub(crate) fn build() -> TokenStream {
            Block::from_registry_key(key)
         }
 
-        pub fn get_block_by_id(id: u16) -> Option<Block> {
+        pub fn get_block_by_id(id: u16) -> Option<&'static Block> {
             Block::from_id(id)
         }
 
@@ -1403,11 +1417,11 @@ pub(crate) fn build() -> TokenStream {
             }
         }
 
-        pub fn get_block_by_state_id(id: u16) -> Option<Block> {
+        pub fn get_block_by_state_id(id: u16) -> Option<&'static Block> {
             Block::from_state_id(id)
         }
 
-        pub fn get_block_and_state_by_state_id(id: u16) -> Option<(Block, BlockState)> {
+        pub fn get_block_and_state_by_state_id(id: u16) -> Option<(&'static Block, BlockState)> {
             if let Some(block) = Block::from_state_id(id) {
                 let state: &BlockStateRef = block.states.iter().find(|state| state.id == id)?;
                 Some((block, state.get_state()))
@@ -1458,7 +1472,7 @@ pub(crate) fn build() -> TokenStream {
         pub fn blocks_movement(block_state: &BlockState) -> bool {
             if block_state.is_solid() {
                 if let Some(block) = get_block_by_state_id(block_state.id) {
-                    return block != Block::COBWEB && block != Block::BAMBOO_SAPLING;
+                    return block != &Block::COBWEB && block != &Block::BAMBOO_SAPLING;
                 }
             }
             false
@@ -1473,25 +1487,30 @@ pub(crate) fn build() -> TokenStream {
             };
 
             // Many state ids map to single raw block id
-            const RAW_ID_FROM_STATE_ID: [Option<u16>; #max_state_id as usize + 1] = [
+            const RAW_ID_FROM_STATE_ID: [Option<u16>; #max_state_id as usize] = [
                 #raw_id_from_state_id
+            ];
+
+            const TYPE_FROM_RAW_ID: [Option<&Block>; #max_type_id as usize] = [
+                #type_from_raw_id_items
             ];
 
             #[doc = r" Try to parse a block from a resource location string."]
             pub fn from_registry_key(name: &str) -> Option<Self> {
-                return Self::BLOCK_FROM_NAME_MAP.get(name).cloned();
+                Self::BLOCK_FROM_NAME_MAP.get(name).cloned()
             }
 
             #[doc = r" Try to parse a block from a raw id."]
-            pub const fn from_id(id: u16) -> Option<Self> {
-                match id {
-                    #type_from_raw_id_arms
-                    _ => None
+            pub const fn from_id(id: u16) -> Option<&'static Self> {
+                if id as usize >= Self::RAW_ID_FROM_STATE_ID.len() {
+                    None
+                } else {
+                    Self::TYPE_FROM_RAW_ID[id as usize]
                 }
             }
 
             #[doc = r" Try to parse a block from a state id."]
-            pub const fn from_state_id(id: u16) -> Option<Self> {
+            pub const fn from_state_id(id: u16) -> Option<&'static Self> {
                 if id as usize >= Self::RAW_ID_FROM_STATE_ID.len() {
                     return None;
                 }

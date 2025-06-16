@@ -1463,7 +1463,7 @@ impl World {
                     .prepare(
                         self,
                         position,
-                        &Block::from_state_id(replaced_block_state_id).unwrap(),
+                        Block::from_state_id(replaced_block_state_id).unwrap(),
                         replaced_block_state_id,
                         new_flags,
                     )
@@ -1472,7 +1472,7 @@ impl World {
                     .update_neighbors(
                         self,
                         position,
-                        &Block::from_state_id(block_state_id).unwrap(),
+                        Block::from_state_id(block_state_id).unwrap(),
                         new_flags,
                     )
                     .await;
@@ -1480,7 +1480,7 @@ impl World {
                     .prepare(
                         self,
                         position,
-                        &Block::from_state_id(block_state_id).unwrap(),
+                        Block::from_state_id(block_state_id).unwrap(),
                         block_state_id,
                         new_flags,
                     )
@@ -1579,9 +1579,9 @@ impl World {
     }
 
     /// Gets a `Block` from the block registry. Returns `Block::AIR` if the block was not found.
-    pub async fn get_block(&self, position: &BlockPos) -> pumpkin_data::Block {
+    pub async fn get_block(&self, position: &BlockPos) -> &'static pumpkin_data::Block {
         let id = self.get_block_state_id(position).await;
-        get_block_by_state_id(id).unwrap_or(Block::AIR)
+        get_block_by_state_id(id).unwrap_or(&Block::AIR)
     }
 
     pub async fn get_fluid(
@@ -1627,10 +1627,10 @@ impl World {
     pub async fn get_block_and_block_state(
         &self,
         position: &BlockPos,
-    ) -> (pumpkin_data::Block, pumpkin_data::BlockState) {
+    ) -> (&'static pumpkin_data::Block, pumpkin_data::BlockState) {
         let id = self.get_block_state_id(position).await;
         get_block_and_state_by_state_id(id).unwrap_or((
-            Block::AIR,
+            &Block::AIR,
             get_state_by_state_id(Block::AIR.default_state_id).unwrap(),
         ))
     }
@@ -2007,7 +2007,7 @@ impl pumpkin_world::world::SimpleWorld for World {
 
 #[async_trait]
 impl BlockAccessor for World {
-    async fn get_block(&self, position: &BlockPos) -> pumpkin_data::Block {
+    async fn get_block(&self, position: &BlockPos) -> &'static pumpkin_data::Block {
         Self::get_block(self, position).await
     }
     async fn get_block_state(&self, position: &BlockPos) -> pumpkin_data::BlockState {
@@ -2017,10 +2017,10 @@ impl BlockAccessor for World {
     async fn get_block_and_block_state(
         &self,
         position: &BlockPos,
-    ) -> (pumpkin_data::Block, pumpkin_data::BlockState) {
+    ) -> (&'static pumpkin_data::Block, pumpkin_data::BlockState) {
         let id = self.get_block_state(position).await.id;
         get_block_and_state_by_state_id(id).unwrap_or((
-            Block::AIR,
+            &Block::AIR,
             get_state_by_state_id(Block::AIR.default_state_id).unwrap(),
         ))
     }

@@ -74,7 +74,7 @@ impl PumpkinBlock for FireBlock {
         _world: &Arc<World>,
         entity: &dyn EntityBase,
         _pos: BlockPos,
-        _block: Block,
+        _block: &'static Block,
         _state: BlockState,
         _server: &Server,
     ) {
@@ -105,7 +105,7 @@ impl PumpkinBlock for FireBlock {
         _neighbor_pos: &BlockPos,
         _neighbor_state: BlockStateId,
     ) -> BlockStateId {
-        if !FireBlockBase::can_place_on(&world.get_block(&block_pos.down()).await) {
+        if !FireBlockBase::can_place_on(world.get_block(&block_pos.down()).await) {
             return Block::AIR.default_state_id;
         }
 

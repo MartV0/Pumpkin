@@ -38,7 +38,7 @@ impl FireBlockBase {
     pub async fn can_place_at(block_accessor: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {
         let block_state = block_accessor.get_block_state(block_pos).await;
         block_state.is_air()
-            && Self::can_place_on(&block_accessor.get_block(&block_pos.down()).await)
+            && Self::can_place_on(block_accessor.get_block(&block_pos.down()).await)
     }
 
     async fn broken(world: Arc<World>, block_pos: BlockPos) {
