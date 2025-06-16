@@ -18,7 +18,7 @@ impl PumpkinBlock for LilyPadBlock {
         world: &Arc<World>,
         entity: &dyn EntityBase,
         pos: BlockPos,
-        _block: Block,
+        _block: &'static Block,
         _state: BlockState,
         _server: &Server,
     ) {

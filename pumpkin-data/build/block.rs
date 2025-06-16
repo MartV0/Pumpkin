@@ -1308,7 +1308,7 @@ pub(crate) fn build() -> TokenStream {
 
         });
 
-        type_from_raw_id_array.push((block.id, quote! { Self::#const_ident }));
+        type_from_raw_id_array.push((block.id, quote! { &Self::#const_ident }));
 
         block_from_name.extend(quote! {
             #name => Self::#const_ident,
@@ -1338,7 +1338,7 @@ pub(crate) fn build() -> TokenStream {
     let max_type_id = type_from_raw_id_array.len();
     for type_lit in type_from_raw_id_array  {
         type_from_raw_id_items.extend(quote! {
-            || #type_lit,
+            #type_lit,
         });
     }
 
@@ -1405,7 +1405,7 @@ pub(crate) fn build() -> TokenStream {
            Block::from_registry_key(key)
         }
 
-        pub fn get_block_by_id(id: u16) -> Option<Block> {
+        pub fn get_block_by_id(id: u16) -> Option<&'static Block> {
             Block::from_id(id)
         }
 
@@ -1418,11 +1418,11 @@ pub(crate) fn build() -> TokenStream {
             }
         }
 
-        pub fn get_block_by_state_id(id: u16) -> Option<Block> {
+        pub fn get_block_by_state_id(id: u16) -> Option<&'static Block> {
             Block::from_state_id(id)
         }
 
-        pub fn get_block_and_state_by_state_id(id: u16) -> Option<(Block, BlockState)> {
+        pub fn get_block_and_state_by_state_id(id: u16) -> Option<(&'static Block, BlockState)> {
             if let Some(block) = Block::from_state_id(id) {
                 let state: &BlockStateRef = block.states.iter().find(|state| state.id == id)?;
                 Some((block, state.get_state()))
@@ -1473,7 +1473,7 @@ pub(crate) fn build() -> TokenStream {
         pub fn blocks_movement(block_state: &BlockState) -> bool {
             if block_state.is_solid() {
                 if let Some(block) = get_block_by_state_id(block_state.id) {
-                    return block != Block::COBWEB && block != Block::BAMBOO_SAPLING;
+                    return block != &Block::COBWEB && block != &Block::BAMBOO_SAPLING;
                 }
             }
             false
@@ -1492,7 +1492,7 @@ pub(crate) fn build() -> TokenStream {
                 #raw_id_from_state_id
             ];
 
-            const TYPE_FROM_RAW_ID: [fn() -> Option<Block>; #max_type_id as usize] = [
+            const TYPE_FROM_RAW_ID: [Option<&Block>; #max_type_id as usize] = [
                 #type_from_raw_id_items
             ];
 
@@ -1502,14 +1502,16 @@ pub(crate) fn build() -> TokenStream {
             }
 
             #[doc = r" Try to parse a block from a raw id."]
-            // pub const fn from_id(id: u16) -> Option<Self> {
-            pub fn from_id(id: u16) -> Option<Self> {
-                Self::TYPE_FROM_RAW_ID[id as usize]()
+            pub const fn from_id(id: u16) -> Option<&'static Self> {
+                if id as usize >= Self::RAW_ID_FROM_STATE_ID.len() {
+                    None
+                } else {
+                    Self::TYPE_FROM_RAW_ID[id as usize]
+                }
             }
 
             #[doc = r" Try to parse a block from a state id."]
-            // TODO beetje lelijk
-            pub fn from_state_id(id: u16) -> Option<Self> {
+            pub const fn from_state_id(id: u16) -> Option<&'static Self> {
                 if id as usize >= Self::RAW_ID_FROM_STATE_ID.len() {
                     return None;
                 }

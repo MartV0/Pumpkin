@@ -1592,7 +1592,7 @@ impl Player {
         let (clicked_block, clicked_block_state) =
             world.get_block_and_block_state(&clicked_block_pos).await;
 
-        let replace_clicked_block = if clicked_block == block {
+        let replace_clicked_block = if clicked_block == &block {
             world
                 .block_registry
                 .can_update_at(
@@ -1606,7 +1606,7 @@ impl Player {
                 .await
                 .then_some(BlockIsReplacing::Itself(clicked_block_state.id))
         } else if clicked_block_state.replaceable() {
-            if clicked_block == Block::WATER {
+            if clicked_block == &Block::WATER {
                 let water_props =
                     WaterLikeProperties::from_state_id(clicked_block_state.id, &clicked_block);
                 Some(BlockIsReplacing::Water(water_props.level))
@@ -1625,7 +1625,7 @@ impl Player {
                 let (previous_block, previous_block_state) =
                     world.get_block_and_block_state(&block_pos).await;
 
-                let replace_previous_block = if previous_block == block {
+                let replace_previous_block = if previous_block == &block {
                     world
                         .block_registry
                         .can_update_at(
@@ -1640,7 +1640,7 @@ impl Player {
                         .then_some(BlockIsReplacing::Itself(previous_block_state.id))
                 } else {
                     previous_block_state.replaceable().then(|| {
-                        if previous_block == Block::WATER {
+                        if previous_block == &Block::WATER {
                             let water_props = WaterLikeProperties::from_state_id(
                                 previous_block_state.id,
                                 &previous_block,

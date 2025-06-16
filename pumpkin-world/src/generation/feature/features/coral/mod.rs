@@ -29,8 +29,8 @@ impl CoralFeature {
         let block = chunk.get_block_state(&pos.0).to_block();
         let above_block = chunk.get_block_state(&pos.up().0).to_block();
 
-        if block != Block::WATER && !block.is_tagged_with("minecraft:corals").unwrap()
-            || above_block != Block::WATER
+        if block != &Block::WATER && !block.is_tagged_with("minecraft:corals").unwrap()
+            || above_block != &Block::WATER
         {
             return false;
         }
@@ -51,7 +51,7 @@ impl CoralFeature {
         for dir in BlockDirection::horizontal() {
             let dir_pos = pos.offset(dir.to_offset());
             if random.next_f32() >= 0.2
-                || chunk.get_block_state(&dir_pos.0).to_block() != Block::WATER
+                || chunk.get_block_state(&dir_pos.0).to_block() != &Block::WATER
             {
                 continue;
             }
