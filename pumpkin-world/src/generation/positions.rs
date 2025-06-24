@@ -72,15 +72,15 @@ pub mod chunk_pos {
     }
 }
 
-const MAX_BLOCK_AXIS: u32 = 30000000;
-const SIZE_BITS_X: u8 = 1 + floor_log2(smallest_encompassing_power_of_two(MAX_BLOCK_AXIS));
-const BITS_X: u64 = (1 << SIZE_BITS_X) - 1;
-const SIZE_BITS_Z: u8 = SIZE_BITS_X;
-const BITS_Z: u64 = (1 << SIZE_BITS_Z) - 1;
+pub const MAX_BLOCK_AXIS: u32 = 30000000;
+pub const SIZE_BITS_X: u8 = 1 + floor_log2(smallest_encompassing_power_of_two(MAX_BLOCK_AXIS));
+pub const BITS_X: u64 = (1 << SIZE_BITS_X) - 1;
+pub const SIZE_BITS_Z: u8 = SIZE_BITS_X;
+pub const BITS_Z: u64 = (1 << SIZE_BITS_Z) - 1;
 pub const SIZE_BITS_Y: u8 = 64 - SIZE_BITS_X - SIZE_BITS_Z;
-const BITS_Y: u64 = (1 << SIZE_BITS_Y) - 1;
-const BIT_SHIFT_Z: u8 = SIZE_BITS_Y;
-const BIT_SHIFT_X: u8 = SIZE_BITS_Y + SIZE_BITS_Z;
+pub const BITS_Y: u64 = (1 << SIZE_BITS_Y) - 1;
+pub const BIT_SHIFT_Z: u8 = SIZE_BITS_Y;
+pub const BIT_SHIFT_X: u8 = SIZE_BITS_Y + SIZE_BITS_Z;
 
 pub const MAX_HEIGHT: u32 = (1 << SIZE_BITS_Y) - 32;
 pub const MAX_COLUMN_HEIGHT: u32 = (MAX_HEIGHT >> 1) - 1;

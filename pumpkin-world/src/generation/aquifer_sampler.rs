@@ -1,3 +1,7 @@
+use std::simd::{i32x4, i64x4, u64x4, Swizzle, Simd, SimdCast, SimdElement, usizex4};
+use std::simd::prelude::*;
+use std::ops::*;
+
 use enum_dispatch::enum_dispatch;
 use pumpkin_util::{
     math::{clamped_map, floor_div, vector2::Vector2, vector3::Vector3},
@@ -15,6 +19,7 @@ use super::{
         surface_height_sampler::SurfaceHeightEstimateSampler,
     },
     positions::{MIN_HEIGHT_CELL, block_pos, chunk_pos},
+    positions,
     proto_chunk::StandardChunkFluidLevelSampler,
     section_coords,
 };
@@ -454,42 +459,69 @@ impl WorldAquiferSampler {
                 let scaled_z = floor_div(k - 5, 16);
 
                 // The 3 closest positions, closest to furthest
-                let mut packed_block_and_hypots = [(0, i32::MAX); 3];
+                let mut packed_block_and_hypots = [(i64x4::splat(0), i32x4::splat(i32::MAX)); 3];
+                let offset_x = i32x4::from_array([0, 0, 1, 1]);
+                let offset_z = i32x4::from_array([0, 1, 0, 1]);
+                let start_x = i32x4::splat(self.start_x);
+                let start_y = i32x4::splat(self.start_y as i32);
+                let start_z = i32x4::splat(self.start_z);
+                let size_z = u64x4::splat(self.size_z as u64);
+                let size_x = u64x4::splat(self.size_x as u64);
+                let scaled_x =i32x4::splat(scaled_x);
+                let scaled_y =i32x4::splat(scaled_y);
+                let scaled_z =i32x4::splat(scaled_z);
+                let i = i32x4::splat(i);
+                let j = i32x4::splat(j);
+                let k = i32x4::splat(k);
                 for offset_y in -1..=1 {
-                    for offset_x in 0..=1 {
-                        for offset_z in 0..=1 {
-                            let x_pos = scaled_x + offset_x;
-                            let y_pos = scaled_y + offset_y;
-                            let z_pos = scaled_z + offset_z;
-                            let index = self.index(x_pos, y_pos, z_pos);
+                    let offset_y = i32x4::splat(offset_y);
+                    let x_pos = scaled_x + offset_x;
+                    let y_pos = scaled_y + offset_y;
+                    let z_pos = scaled_z + offset_z;
+                    // self.index
+                    // let i = (x - self.start_x) as u64;
+                    // let j = (y - self.start_y as i32) as u64;
+                    // let k = (z - self.start_z) as u64;
+                    //
+                    // ((j * self.size_z + k) * self.size_x + i) as usize
+                    let i_: u64x4 = (x_pos - start_x).cast();
+                    let j_: u64x4 = (y_pos - start_y).cast();
+                    let k_: u64x4 = (z_pos - start_z).cast();
 
-                            let packed_random = self.packed_positions[index];
+                    // let indexes = (convert(j) * size_z + convert(k)) * size_x + convert(i);
+                    // let indexes = indexes.to_array().map(|x| x as usize);
+                    let index: usizex4 = ((j_ * size_z + k_) * size_x + i_).cast();
 
-                            let unpacked_x = block_pos::unpack_x(packed_random);
-                            let unpacked_y = block_pos::unpack_y(packed_random);
-                            let unpacked_z = block_pos::unpack_z(packed_random);
+                    // gather
+                    // let packed_random = self.packed_positions[index];
+                    let packed_random = self.packed_positions[0];
+                    let packed_random = i64x4::gather_or_default(&self.packed_positions, index);
 
-                            let local_x = unpacked_x - i;
-                            let local_y = unpacked_y - j;
-                            let local_z = unpacked_z - k;
+                    let test = packed_random.shr(10);
+                    let test2 = packed_random << 10;
+                    let unpacked_x: i32x4 = ((packed_random << ((64 - positions::BIT_SHIFT_X - positions::SIZE_BITS_X) as i64)) >> ((64 - positions::SIZE_BITS_X) as i64)).cast();
+                    let unpacked_y: i32x4 = ((packed_random << (64 - positions::SIZE_BITS_Y) as i64) >> (64 - positions::SIZE_BITS_Y) as i64).cast();
+                    let unpacked_z: i32x4 = ((packed_random << (64 - positions::BIT_SHIFT_Z - positions::SIZE_BITS_Z) as i64) >> (64 - positions::SIZE_BITS_Z) as i64).cast();
 
-                            let hypot_squared =
-                                local_x * local_x + local_y * local_y + local_z * local_z;
+                    let local_x = unpacked_x - i;
+                    let local_y = unpacked_y - j;
+                    let local_z = unpacked_z - k;
 
-                            if packed_block_and_hypots[2].1 >= hypot_squared {
-                                packed_block_and_hypots[2] = (packed_random, hypot_squared);
-                            }
+                    let hypot_squared =
+                        local_x * local_x + local_y * local_y + local_z * local_z;
 
-                            if packed_block_and_hypots[1].1 >= hypot_squared {
-                                packed_block_and_hypots[2] = packed_block_and_hypots[1];
-                                packed_block_and_hypots[1] = (packed_random, hypot_squared);
-                            }
+                    if packed_block_and_hypots[2].1 >= hypot_squared {
+                        packed_block_and_hypots[2] = (packed_random, hypot_squared);
+                    }
 
-                            if packed_block_and_hypots[0].1 >= hypot_squared {
-                                packed_block_and_hypots[1] = packed_block_and_hypots[0];
-                                packed_block_and_hypots[0] = (packed_random, hypot_squared);
-                            }
-                        }
+                    if packed_block_and_hypots[1].1 >= hypot_squared {
+                        packed_block_and_hypots[2] = packed_block_and_hypots[1];
+                        packed_block_and_hypots[1] = (packed_random, hypot_squared);
+                    }
+
+                    if packed_block_and_hypots[0].1 >= hypot_squared {
+                        packed_block_and_hypots[1] = packed_block_and_hypots[0];
+                        packed_block_and_hypots[0] = (packed_random, hypot_squared);
                     }
                 }
 

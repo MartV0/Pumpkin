@@ -1,3 +1,6 @@
+// #![cfg_attr(feature = "simd", feature(portable_simd))]
+#![feature(portable_simd)]
+
 use dimension::Dimension;
 use generation::settings::GenerationSettings;
 use pumpkin_util::math::vector2::Vector2;

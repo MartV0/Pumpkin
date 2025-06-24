@@ -3,6 +3,10 @@ name = "pumpkin-world"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+simd = []
+
 [dependencies]
 pumpkin-nbt = { path = "../pumpkin-nbt" }
 pumpkin-util = { path = "../pumpkin-util" }
